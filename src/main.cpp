@@ -46,7 +46,7 @@ int main() {
 	// Creating the cube entities
 	entt::registry registry;
 	auto entities = registry.view<const Transform, const PrimitiveRenderer>();
-	auto cubeVectors = EnvironmentUtils::cube(20);
+	auto cubeVectors = EnvironmentUtils::cube(15);
 
 	auto mesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 	for (auto &vec : *cubeVectors) {
