@@ -7,6 +7,10 @@
 #include <EnvironmentUtils.h>
 #include <ModelUtils.h>
 #include <rlgl.h>
+#include <raylib.h>
+
+#define RLIGHTS_IMPLEMENTATION
+#include "raylib/rlights.h"
 
 using namespace std;
 using namespace entt;
@@ -22,11 +26,15 @@ enum Primitives{
 struct PrimitiveRenderer{
 	Primitives type;
 	Color color;
-	Model model;
 };
 
-struct Velocity{
-	Vector3 velocity;
+struct Renderer{
+	Mesh mesh;
+	Material material;
+};
+
+struct RenderMatrix{
+	Matrix transform;
 };
 
 int main() {
@@ -37,16 +45,27 @@ int main() {
 
 	// Setting up the camera
 	Camera3D camera = { 0 };
-	camera.position = (Vector3){ 30.0f, 20.0f, 30.0f };
+	camera.position = (Vector3){ 80.0f, 60.0f, 80.0f };
 	camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
 	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
 	camera.fovy = 70.0f;
 	camera.type = CAMERA_PERSPECTIVE;
 
+	auto shader = LoadShader("../resources/shaders/base_lighting_instanced.vs","../resources/shaders/lighting.fs");
+
+	// Get some shader loactions
+	shader.locs[LOC_MATRIX_MVP] = GetShaderLocation(shader, "mvp");
+	shader.locs[LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
+	shader.locs[LOC_MATRIX_MODEL] = GetShaderLocationAttrib(shader, "instance");
+
+	auto material = LoadMaterialDefault();
+	material.shader = shader;
+	material.maps[MAP_DIFFUSE].color = RED;
+
 	// Creating the cube entities
-	entt::registry registry;
-	auto entities = registry.view<const Transform, const PrimitiveRenderer>();
-	auto cubeVectors = EnvironmentUtils::cube(15);
+	registry registry;
+	auto entities = registry.group<const Transform, const RenderMatrix>();
+	auto cubeVectors = EnvironmentUtils::cube(50);
 
 	auto mesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 	for (auto &vec : *cubeVectors) {
@@ -58,15 +77,41 @@ int main() {
 		transform.rotation = QuaternionIdentity();
 		transform.scale = Vector3{1,1,1};
 
-		auto &renderer = registry.emplace<PrimitiveRenderer>(entity);
-		renderer.type = Primitives::CUBE;
-		renderer.color = ColorUtils::randomColor();
+		auto &renderer = registry.emplace<Renderer>(entity);
+		renderer.mesh = mesh;
+		renderer.material = material;
 
-		renderer.model = LoadModelFromMesh(mesh);
+		auto &rendererMatrix = registry.emplace<RenderMatrix>(entity);
+		rendererMatrix.transform = MatrixIdentity();
 	}
+
+	// Ambient light level
+	auto ambientLoc = GetShaderLocation(shader, "ambient");
+	auto shaderValue = new float[4]{ 0.2f, 0.2f, 0.2f, 1.0f };
+	SetShaderValue(shader, ambientLoc, shaderValue, UNIFORM_VEC4);
+
+	CreateLight(LIGHT_DIRECTIONAL, (Vector3){ 50, 50, 0 }, Vector3Zero(), WHITE, shader);
 
 	// Main game loop
 	while (!WindowShouldClose()){
+
+		// Update the light shader with the camera view position
+		const float cameraPos[3] = { camera.position.x, camera.position.y, camera.position.z };
+		SetShaderValue(shader, shader.locs[LOC_VECTOR_VIEW], cameraPos, UNIFORM_VEC3);
+
+		const auto entitySize = entities.size();
+		auto index = 0;
+		for(const auto &entity : entities) {
+
+			const auto &transform = registry.get<Transform>(entity);
+			auto &renderer = registry.get<RenderMatrix>(entity);
+
+			const auto translation = MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
+			renderer.transform = MatrixMultiply(MatrixIdentity(), translation);
+			index++;
+		}
+
+		const auto transforms = entities.raw<const RenderMatrix>();
 
 		// Draw
 		//----------------------------------------------------------------------------------
@@ -74,13 +119,7 @@ int main() {
 		ClearBackground(RAYWHITE);
 
 		BeginMode3D(camera);
-		for(const auto &entity : entities) {
-
-			const auto &transform = registry.get<Transform>(entity);
-			const auto &renderer = registry.get<PrimitiveRenderer>(entity);
-
-			DrawModel(renderer.model, transform.translation, 1.0f, renderer.color);
-		}
+			rlDrawMeshInstanced(mesh, material, (Matrix*)(transforms), entitySize);
 		EndMode3D();
 		EndDrawing();
 	}
