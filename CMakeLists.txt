@@ -35,5 +35,5 @@ endif()
 
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS}")
 # This is the main part:
-add_executable(${PROJECT_NAME} src/main.cpp src/ColorUtils.cpp src/headers/ColorUtils.h src/VectorUtils.cpp src/headers/VectorUtils.h src/headers/EnvironmentUtils.h src/EnvironmentUtils.cpp src/ModelUtils.cpp src/headers/ModelUtils.h)
+add_executable(${PROJECT_NAME} src/main.cpp src/headers/ColorUtils.h src/headers/VectorUtils.h src/headers/EnvironmentUtils.h src/headers/World.h src/headers/Components.h src/headers/Systems.h)
 target_link_libraries(${PROJECT_NAME} raylib)
