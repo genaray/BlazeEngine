@@ -17,9 +17,8 @@ namespace SystemUtils {
 		const Material &material;
 
 		bool operator==(const BatchedDrawCall &rhs) const {
-			return mesh.triangleCount == rhs.mesh.triangleCount && material.maps == rhs.material.maps;
+			return mesh.triangleCount == rhs.mesh.triangleCount && material.params == rhs.material.params;
 		}
-
 		bool operator!=(const BatchedDrawCall &rhs) const { return !(rhs == *this); }
 	};
 }
@@ -32,7 +31,7 @@ namespace std {
 	template<>
 	struct hash<BatchedDrawCall> {
 		size_t operator()(BatchedDrawCall const& t) const {
-			return size_t((t.mesh.triangleCount * 37 + t.material.maps->value) * 37 );
+			return (size_t)t.mesh.vaoId+t.material.shader.id;
 		}
 	};
 }
@@ -42,6 +41,7 @@ namespace Systems {
 
 	using namespace SystemUtils;
 
+	// Two maps for batching the draw calls with same meshes and materials
 	static auto batchProcessor = unordered_map<BatchedDrawCall, size_t>();
 	static auto batches = unordered_map<BatchedDrawCall, vector<Matrix>*>();
 
@@ -77,16 +77,18 @@ namespace Systems {
 	 */
 	inline void renderSystem(World &world) {
 
-		// Get cams and renders
+		// Get cams and instancedRenderers
 		auto const cams = world.entities->view<const Cam>();
-		auto const renders = world.entities->view<const Transform, const Renderer>();
+		auto const renderers = world.entities->view<const Transform, const Renderer>();
+		auto const nonInstanced = world.entities->view<const Transform, const Renderer>(exclude<InstancedRenderer>);
+		auto const instancedRenderers = world.entities->view<const Transform, const Renderer, const InstancedRenderer>();
 
 		// Resetting batches
 		for (auto const& [key, val] : batchProcessor)
 			batchProcessor[key] = 0;
 
 		// Counting possible batches
-		for(const auto &entity : renders) {
+		for(const auto &entity : instancedRenderers) {
 
 			// Receive components
 			const auto &renderer = world.entities->get<Renderer>(entity);
@@ -123,31 +125,42 @@ namespace Systems {
 		}
 
 		// Calculating the matrix being passed to opengl and pushes that one into the batches.
-		for(const auto &entity : renders) {
+		for(const auto &entity : renderers) {
 
 			// Receive components
 			const auto &transform = world.entities->get<Transform>(entity);
-			const auto &renderer = world.entities->get<Renderer>(entity);
+			auto &renderer = world.entities->get<Renderer>(entity);
+			const auto isIstanced = world.entities->has<InstancedRenderer>(entity);
 
 			// Apply transform for calculating the matrix
 			const auto translation = MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
 			const auto matrix = MatrixMultiply(MatrixIdentity(), translation);
 
 			// When theres a key with that batched draw call, insert it into the list... otherwhise create a new one
-			const auto batch = BatchedDrawCall{renderer.mesh, renderer.material};
-			batches[batch]->push_back(matrix);
+			if (isIstanced) {
+				const auto batch = BatchedDrawCall{renderer.mesh, renderer.material};
+				batches[batch]->push_back(matrix);
+			} else renderer.transform = matrix;
 		}
 
 		// Draw
 		//----------------------------------------------------------------------------------
 		BeginDrawing();
-		for (const auto &entity : cams) {
+		for (const auto &camEntity : cams) {
 
-			const auto &cam = world.entities->get<Cam>(entity);
+			const auto &cam = world.entities->get<Cam>(camEntity);
 			ClearBackground(cam.backgroundColor);
 			BeginMode3D(cam.camera);
-				for (auto const& [key, val] : batches) {
+
+				// Batched rendering loop
+				for (auto const& [key, val] : batches)
 					rlDrawMeshInstanced(key.mesh, key.material, (Matrix *) (val->data()), val->size());
+
+				// Normal rendering loop
+				for(const auto &entity : nonInstanced) {
+
+					const auto &renderer = world.entities->get<Renderer>(entity);
+					rlDrawMesh(renderer.mesh, renderer.material, renderer.transform);
 				}
 			EndMode3D();
 		}

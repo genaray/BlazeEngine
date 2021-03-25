@@ -34,10 +34,6 @@ int main() {
 	shader.locs[LOC_VECTOR_VIEW] = GetShaderLocation(shader, "viewPos");
 	shader.locs[LOC_MATRIX_MODEL] = GetShaderLocationAttrib(shader, "instance");
 
-	auto material = LoadMaterialDefault();
-	material.shader = shader;
-	material.maps[MAP_DIFFUSE].color = RED;
-
 	// Ambient light level
 	auto ambientLoc = GetShaderLocation(shader, "ambient");
 	auto shaderValue = new float[4]{ 0.2f, 0.2f, 0.2f, 1.0f };
@@ -49,55 +45,29 @@ int main() {
 	world.addSystem(Systems::shaderSystem);
 	world.addSystem(Systems::renderSystem);
 
+	auto material = LoadMaterialDefault();
+	material.shader = shader;
+	material.maps[MAP_DIFFUSE].color = RED;
+
 	// Creating the cube entities
 	auto cubeVectors = EnvironmentUtils::cube(50);
-	auto mesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 	for (auto &vec : *cubeVectors) {
 
-		const auto entity = world.entities->create();
-
-		auto &transform =  world.entities->emplace<Transform>(entity);
-		transform.translation = vec;
-		transform.rotation = QuaternionIdentity();
-		transform.scale = Vector3{1,1,1};
-
-		auto &renderer = world.entities->emplace<Renderer>(entity);
-		renderer.mesh = mesh;
-		renderer.material = material;
+		const auto entity = WorldUtils::createCube(world, vec, {0,0,0,0}, {1,1,1}, material);
+		world.entities->emplace<InstancedRenderer>(entity);
 	}
 
+	auto otherMaterial = LoadMaterialDefault();
+	otherMaterial.shader = shader;
+	otherMaterial.maps[MAP_DIFFUSE].color = RED;
+
+	const auto entity = WorldUtils::createCube(world, {-10,-10,-10}, {0,0,0,0}, {1,1,1}, otherMaterial);
+	auto test = world.entities->get<Renderer>(entity);
+	test.mesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 
 	// Main game loop
-	while (!WindowShouldClose()){
-
-		/*const auto entitySize = entities.size();
-		auto index = 0;
-		for(const auto &entity : entities) {
-
-			const auto &transform = registry.get<Transform>(entity);
-			auto &renderer = registry.get<RenderMatrix>(entity);
-
-			const auto translation = MatrixTranslate(transform.translation.x, transform.translation.y, transform.translation.z);
-			renderer.transform = MatrixMultiply(MatrixIdentity(), translation);
-			index++;
-		}
-
-		const auto &transforms = entities.raw<const RenderMatrix>();*/
-
-		// Draw
-		//----------------------------------------------------------------------------------
-
+	while (!WindowShouldClose())
 		world.process();
-		/*BeginDrawing();
-		ClearBackground(RAYWHITE);
-
-		BeginMode3D(camera);
-
-			rlDrawMeshInstanced(mesh, material, (Matrix*)(transforms), entitySize);
-
-		EndMode3D();
-		EndDrawing();*/
-	}
 
 	CloseWindow();        // Close window and OpenGL context
 	return 0;

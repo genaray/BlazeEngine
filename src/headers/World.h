@@ -40,6 +40,15 @@ namespace WorldUtils {
 	#define DEFAULT_BACKGROUND_COLOR WHITE
 	#define DEFAULT_LIGHT_COLOR WHITE
 
+	static Mesh cubeMesh = Mesh();
+
+	/**
+	 * Creates a camera entity and returns it
+	 * @param world The world used
+	 * @param camera The camera struct used
+	 * @param color The background color
+	 * @return The camera entity
+	 */
 	inline entity createCamera(World &world, Camera &camera, Color color) {
 
 		auto cameraEntity = world.entities->create();
@@ -55,6 +64,11 @@ namespace WorldUtils {
 		return cameraEntity;
 	}
 
+	/**
+	 * Creates a default camera entity and returns it
+	 * @param world The world used
+	 * @return
+	 */
 	inline entity createDefaultCamera(World &world){
 
 		// Setting up the camera
@@ -68,6 +82,13 @@ namespace WorldUtils {
 		return createCamera(world, camera, DEFAULT_BACKGROUND_COLOR);
 	}
 
+	/**
+	 * Creates a light entity and returns it
+	 * @param world The world used
+	 * @param light The light used
+	 * @param shader The shader used for the light
+	 * @return The light entity
+	 */
 	inline entity createLight(World &world, Light &light, Shader &shader){
 
 		auto lightEntity = world.entities->create();
@@ -86,10 +107,34 @@ namespace WorldUtils {
 		return lightEntity;
 	}
 
+	/**
+	 * Creates a default light and returns it
+	 * @param world The world used
+	 * @param shader The light shader used
+	 * @return
+	 */
 	inline entity createDefaultLight(World &world, Shader &shader){
 
 		auto light = CreateLight(LIGHT_DIRECTIONAL, (Vector3){ 50, 50, 0 }, Vector3Zero(), DEFAULT_LIGHT_COLOR, shader);
 		return createLight(world, light, shader);
+	}
+
+	inline entity createCube(World &world, const Vector3 &translation, const Quaternion &rotation, const Vector3 &scale, const Material &material){
+
+		if(cubeMesh.triangleCount == 0) cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+		const auto entity = world.entities->create();
+
+		auto &transform =  world.entities->emplace<Transform>(entity);
+		transform.translation = translation;
+		transform.rotation = rotation;
+		transform.scale = scale;
+
+		auto &renderer = world.entities->emplace<Renderer>(entity);
+		renderer.mesh = cubeMesh;
+		renderer.material = material;
+		renderer.transform = MatrixIdentity();
+
+		return entity;
 	}
 }
 
