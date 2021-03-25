@@ -16,11 +16,10 @@
 using namespace std;
 using namespace entt;
 
-const int width = 800;
-const int height = 800;
+static const int width = 800;
+static const int height = 800;
 
 static World world;
-
 
 int main() {
 
@@ -50,29 +49,22 @@ int main() {
 	world.addSystem(Systems::shaderSystem);
 	world.addSystem(Systems::renderSystem);
 
-
 	// Creating the cube entities
-	/*registry registry;
-	auto entities = registry.group<const Transform, const RenderMatrix>();
 	auto cubeVectors = EnvironmentUtils::cube(50);
-
 	auto mesh = GenMeshCube(1.0f, 1.0f, 1.0f);
 	for (auto &vec : *cubeVectors) {
 
-		const auto entity = registry.create();
+		const auto entity = world.entities->create();
 
-		auto &transform = registry.emplace<Transform>(entity);
+		auto &transform =  world.entities->emplace<Transform>(entity);
 		transform.translation = vec;
 		transform.rotation = QuaternionIdentity();
 		transform.scale = Vector3{1,1,1};
 
-		auto &renderer = registry.emplace<Renderer>(entity);
+		auto &renderer = world.entities->emplace<Renderer>(entity);
 		renderer.mesh = mesh;
 		renderer.material = material;
-
-		auto &rendererMatrix = registry.emplace<RenderMatrix>(entity);
-		rendererMatrix.transform = MatrixIdentity();
-	}*/
+	}
 
 
 	// Main game loop

@@ -32,7 +32,6 @@ struct PrimitiveRenderer{
 struct Renderer{
 	Mesh mesh;
 	Material material;
-	Matrix transform;
 };
 
 #endif //ENGINE_COMPONENTS_H
